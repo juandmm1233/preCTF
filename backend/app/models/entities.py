@@ -24,6 +24,7 @@ class User(Base):
     submissions: Mapped[list["Submission"]] = relationship(back_populates="user")
     hint_uses: Mapped[list["HintUse"]] = relationship(back_populates="user")
     access_token: Mapped["AccessToken | None"] = relationship(back_populates="user", uselist=False)
+    lab_sessions: Mapped[list["LabSession"]] = relationship(back_populates="user")
 
 
 class Level(Base):
@@ -41,6 +42,7 @@ class Level(Base):
     hint_cost: Mapped[int] = mapped_column(Integer)
     hint_text: Mapped[str] = mapped_column(Text)
     is_bonus: Mapped[bool] = mapped_column(Boolean, default=False)
+    tutorial_content: Mapped[str] = mapped_column(Text, default="")
 
 
 class Progress(Base):
@@ -94,6 +96,22 @@ class AccessToken(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
     user: Mapped[User] = relationship(back_populates="access_token")
+
+
+class LabSession(Base):
+    __tablename__ = "lab_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), index=True)
+    level_id: Mapped[int] = mapped_column(Integer, ForeignKey("levels.id"), index=True)
+    container_id: Mapped[str] = mapped_column(String(64), default="")
+    status: Mapped[str] = mapped_column(String(24), default="idle")
+    public_url: Mapped[str] = mapped_column(String(255), default="")
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    user: Mapped[User] = relationship(back_populates="lab_sessions")
+    level: Mapped[Level] = relationship()
 
 
 class Honeypot(Base):

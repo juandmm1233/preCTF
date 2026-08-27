@@ -2,18 +2,19 @@
 
 Plataforma web para que los estudiantes de ingeniería de sistemas completen **8 niveles en orden** antes de la clase Attack & Defend. El estudiante resuelve cada vector en una **instancia de entrenamiento** del laboratorio CTF UCC y **solo envía la flag** aquí. Al completar el último nivel recibe un **token de acceso** para el CTF práctico.
 
-Esta aplicación **no hospeda** las apps PHP vulnerables de `ctf1`/`ctf2` y **no incluye** payloads ni procedimientos de explotación.
+Esta aplicación **no incluye** payloads ni procedimientos de explotación. El código del laboratorio vulnerable **no vive en este repositorio**: el instructor publica una imagen Docker propia y preCTF solo la arranca, la aísla y la apaga.
 
 ## Arquitectura
 
 | Capa | Tecnología | Rol |
 |------|------------|-----|
-| Frontend | React + Vite + TypeScript | Login, dashboard, envío de flags, certificado |
-| Backend | FastAPI | Auth JWT, validación secuencial, pistas, tokens |
-| Base de datos | PostgreSQL 16 | Usuarios, niveles, progreso, envíos, honeypots |
-| Despliegue | Docker Compose | `web` (nginx:80) + `api` (host `:8001` → contenedor `:8000`) + `db` (`:5432`) |
+| Frontend | React + Vite + TypeScript | Login, dashboard, envío de flags, modo aprendizaje, certificado |
+| Backend | FastAPI | Auth JWT, validación secuencial, pistas, tokens, orquestación de labs |
+| Base de datos | PostgreSQL 16 | Usuarios, niveles (Markdown de tutorial), progreso, sesiones de lab |
+| Labs aislados | Docker + Traefik (rutas en archivo) | Una instancia por estudiante en la red `prectf_challenges` (puerto `:8088`) |
+| Despliegue | Docker Compose | `web` (`:80`) + `api` (`:8001`) + `db` (`:5432`) + `dockerproxy` + `lab-proxy` |
 
-Flujo: estudiante → laboratorio de entrenamiento → flag → `POST /api/levels/{id}/submit` → desbloqueo del siguiente nivel → token al completar N8.
+Flujo: estudiante → instancia aislada del nivel (si está configurada) o laboratorio de entrenamiento → flag → `POST /api/levels/{id}/submit` → desbloqueo del siguiente nivel → token al completar N8.
 
 ## Mapeo laboratorio CTF UCC → niveles preCTF
 
@@ -57,8 +58,27 @@ docker compose up -d --build
 - UI: http://localhost
 - API: http://localhost:8001/api/health
 - Docs: http://localhost:8001/docs
+- Labs (Traefik): http://n1-{8hex}.localhost:8088  (tras *Iniciar lección* en el Nivel 1)
 
 Cuenta instructor por defecto (cámbiala): `instructor@ucc.local` / `CambiaEstaClave!`.
+
+### Laboratorio aislado del Nivel 1
+
+El login de práctica es el de **CTF UCC `ctf1`** (Ibague Data Services). preCTF no copia ese código: construye una imagen desde la carpeta del lab.
+
+```bash
+docker compose --profile build-labs build challenge-n1
+docker compose up -d --build api
+```
+
+En `.env`: `CHALLENGE_N1_IMAGE=prectf-challenge-n1:local` y, si el lab no está al lado, `CTF_LAB_N1_CONTEXT` con la ruta a `ctf1`. Detalle en [`challenges/n1/README.md`](challenges/n1/README.md).
+
+Tras *Iniciar lección*, abre `/index.php` en la instancia. La flag `PRECTF_FLAG_N1` se muestra al autenticarse; valídala en este panel.
+
+- Tope simultáneo: `PRECTF_MAX_LAB_SESSIONS` (por defecto 20).
+- Cada instancia caduca a los `LAB_TTL_MINUTES` (45).
+- Los labs no alcanzan PostgreSQL ni el socket de Docker.
+- En el aula, si los PCs no son el host de Compose, configure `LAB_BASE_DOMAIN` con DNS comodín hacia esa máquina.
 
 ### Desarrollo local (sin Docker para el frontend)
 
@@ -75,6 +95,10 @@ Cuenta instructor por defecto (cámbiala): `instructor@ucc.local` / `CambiaEstaC
 | GET | `/api/dashboard` | Progreso, estados `locked \| available \| completed`, token si aplica |
 | POST | `/api/levels/{id}/submit` | Valida flag; `403 LEVEL_LOCKED` si el anterior no está hecho |
 | POST | `/api/levels/{id}/hint` | Revela pista conceptual y resta puntos una sola vez |
+| GET | `/api/levels/{id}` | Detalle, Markdown del tutorial y estado del laboratorio |
+| POST | `/api/levels/{id}/environment/start` | Arranca (o reutiliza) la instancia aislada |
+| GET | `/api/levels/{id}/environment` | Estado y URL pública de la instancia |
+| POST | `/api/levels/{id}/environment/stop` | Apaga y elimina el contenedor |
 | GET | `/api/admin/verify-token?token=` | Verifica el token de acceso (JWT admin o header `X-Instructor-Key`) |
 
 Límite de envíos: 30 por minuto y estudiante.
@@ -82,11 +106,12 @@ Límite de envíos: 30 por minuto y estudiante.
 ## Esquema de datos (resumen)
 
 - `users` — cuenta, puntaje, rol instructor
-- `levels` — catálogo + `flag_hash`
+- `levels` — catálogo + `flag_hash` + `tutorial_content` (Markdown conceptual)
 - `progress` — único por `(user_id, level_id)`
 - `submissions` — auditoría de envíos
 - `hint_uses` — pistas cobradas
 - `honeypots` — hashes que penalizan
+- `lab_sessions` — contenedor, URL y caducidad por estudiante y nivel
 - `access_tokens` — `PRECTF-UCC-{año}-{user8}-{nonce}.{hmac}`
 
 ## Verificación del token (instructor)
@@ -99,5 +124,5 @@ curl -s -H "X-Instructor-Key: cambia-esta-clave-de-instructor" ^
 ## Contenido que no va en esta plataforma
 
 - Payloads, PoCs o playbooks ofensivos
-- Copias de `ctf1/` o `ctf2/`
+- Copias de `ctf1/` o `ctf2` dentro de este repo
 - Las flags de la clase competitiva 15v15

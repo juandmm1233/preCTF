@@ -10,6 +10,14 @@ export type User = {
 
 export type LevelStatus = "locked" | "available" | "completed";
 
+export type LabEnvironment = {
+  status: "idle" | "starting" | "running" | "stopping" | "stopped" | "error";
+  public_url: string | null;
+  expires_at: string | null;
+  has_lab: boolean;
+  message: string | null;
+};
+
 export type LevelCard = {
   id: number;
   order_index: number;
@@ -24,6 +32,11 @@ export type LevelCard = {
   status: LevelStatus;
   hint_used: boolean;
   completed_at: string | null;
+};
+
+export type LevelDetail = LevelCard & {
+  tutorial_content: string;
+  environment: LabEnvironment;
 };
 
 export type Dashboard = {
@@ -115,4 +128,10 @@ export const api = {
     }),
   hint: (levelId: number) =>
     request<HintResult>(`/api/levels/${levelId}/hint`, { method: "POST" }),
+  getLevel: (levelId: number) => request<LevelDetail>(`/api/levels/${levelId}`),
+  startEnvironment: (levelId: number) =>
+    request<LabEnvironment>(`/api/levels/${levelId}/environment/start`, { method: "POST" }),
+  stopEnvironment: (levelId: number) =>
+    request<LabEnvironment>(`/api/levels/${levelId}/environment/stop`, { method: "POST" }),
+  getEnvironment: (levelId: number) => request<LabEnvironment>(`/api/levels/${levelId}/environment`),
 };

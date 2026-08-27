@@ -52,6 +52,14 @@ class HintOut(BaseModel):
     score: int
 
 
+class EnvironmentOut(BaseModel):
+    status: Literal["idle", "starting", "running", "stopping", "stopped", "error"]
+    public_url: str | None = None
+    expires_at: datetime | None = None
+    has_lab: bool = False
+    message: str | None = None
+
+
 class LevelCardOut(BaseModel):
     id: int
     order_index: int
@@ -66,6 +74,11 @@ class LevelCardOut(BaseModel):
     status: Literal["locked", "available", "completed"]
     hint_used: bool
     completed_at: datetime | None = None
+
+
+class LevelDetailOut(LevelCardOut):
+    tutorial_content: str
+    environment: EnvironmentOut
 
 
 class DashboardOut(BaseModel):

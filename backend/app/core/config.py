@@ -13,6 +13,16 @@ class Settings(BaseSettings):
     jwt_expire_hours: int = 12
     cors_origins: str = "http://localhost:5173,http://localhost"
 
+    docker_host: str = "tcp://dockerproxy:2375"
+    challenge_n1_image: str = ""
+    challenge_network: str = "prectf_challenges"
+    lab_base_domain: str = "localhost"
+    lab_public_port: int = 8088
+    lab_ttl_minutes: int = 45
+    prectf_max_lab_sessions: int = 20
+    lab_internal_port: int = 80
+    traefik_dynamic_dir: str = "/traefik/dynamic"
+
     admin_email: str = ""
     admin_password: str = ""
     admin_code: str = "DOCENTE"

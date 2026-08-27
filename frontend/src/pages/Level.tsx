@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { api, type LevelCard, type SubmitResult } from "../api/client";
+import { api, type LabEnvironment, type LevelDetail, type SubmitResult } from "../api/client";
+import { LabPanel, LearningMode, useLearningMode } from "../components/LearningMode";
 import { useAuth } from "../context/AuthContext";
 
 export function LevelPage() {
@@ -8,30 +9,40 @@ export function LevelPage() {
   const levelId = Number(id);
   const navigate = useNavigate();
   const { refresh } = useAuth();
-  const [level, setLevel] = useState<LevelCard | null>(null);
+  const [level, setLevel] = useState<LevelDetail | null>(null);
   const [flag, setFlag] = useState("");
   const [hint, setHint] = useState("");
   const [message, setMessage] = useState<SubmitResult | null>(null);
   const [error, setError] = useState("");
+  const [labError, setLabError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [labBusy, setLabBusy] = useState(false);
+  const [locked, setLocked] = useState(false);
+  const [learning, setLearning] = useLearningMode(true);
 
   useEffect(() => {
     api
-      .dashboard()
+      .getLevel(levelId)
       .then((data) => {
-        const found = data.levels.find((item) => item.id === levelId) ?? null;
-        setLevel(found);
-        if (found?.hint_used) {
+        setLevel(data);
+        if (data.hint_used) {
           api.hint(levelId).then((res) => setHint(res.hint)).catch(() => undefined);
         }
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "No se pudo cargar el nivel."));
+      .catch((err) => {
+        const text = err instanceof Error ? err.message : "No se pudo cargar el nivel.";
+        if (text.includes("nivel anterior")) {
+          setLocked(true);
+          return;
+        }
+        setError(text);
+      });
   }, [levelId]);
 
   if (!Number.isFinite(levelId)) return <Navigate to="/" replace />;
+  if (locked) return <Navigate to="/" replace />;
   if (error) return <p className="alert error">{error}</p>;
   if (!level) return <p className="muted">Cargando nivel…</p>;
-  if (level.status === "locked") return <Navigate to="/" replace />;
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -45,8 +56,8 @@ export function LevelPage() {
         navigate("/victoria", { replace: true });
         return;
       }
-      const data = await api.dashboard();
-      setLevel(data.levels.find((item) => item.id === levelId) ?? null);
+      const data = await api.getLevel(levelId);
+      setLevel(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "No se pudo validar.");
     } finally {
@@ -68,7 +79,78 @@ export function LevelPage() {
     }
   }
 
+  async function onStartLab() {
+    setLabBusy(true);
+    setLabError("");
+    try {
+      const env = await api.startEnvironment(levelId);
+      setLevel((current) => (current ? { ...current, environment: env } : current));
+    } catch (err) {
+      setLabError(err instanceof Error ? err.message : "No se pudo iniciar el laboratorio.");
+    } finally {
+      setLabBusy(false);
+    }
+  }
+
+  async function onStopLab() {
+    setLabBusy(true);
+    setLabError("");
+    try {
+      const env = await api.stopEnvironment(levelId);
+      setLevel((current) => (current ? { ...current, environment: env } : current));
+    } catch (err) {
+      setLabError(err instanceof Error ? err.message : "No se pudo apagar el laboratorio.");
+    } finally {
+      setLabBusy(false);
+    }
+  }
+
   const tone = message?.ok ? "success" : message ? "error" : "";
+  const environment: LabEnvironment = level.environment;
+
+  const labPanel = environment.has_lab ? (
+    <LabPanel
+      environment={environment}
+      endpoint={level.lab_endpoint}
+      busy={labBusy}
+      onStart={() => void onStartLab()}
+      onStop={() => void onStopLab()}
+    />
+  ) : (
+    <section className="panel lab-panel">
+      <h2>Laboratorio</h2>
+      <p className="muted">
+        Este nivel se resuelve en la instancia de entrenamiento externa. Referencia: {level.lab_endpoint}
+      </p>
+    </section>
+  );
+
+  const flagForm = (
+    <form className="panel" onSubmit={onSubmit}>
+      <h2>Validar flag</h2>
+      <label>
+        Flag
+        <input
+          value={flag}
+          onChange={(e) => setFlag(e.target.value)}
+          placeholder="FLAG{…}"
+          autoComplete="off"
+          required
+        />
+      </label>
+      {message && <p className={`alert ${tone}`}>{message.message}</p>}
+      {error && <p className="alert error">{error}</p>}
+      {labError && <p className="alert error">{labError}</p>}
+      <div className="actions">
+        <button type="submit" disabled={busy || level.status === "completed"}>
+          {level.status === "completed" ? "Nivel completado" : busy ? "Validando…" : "Enviar flag"}
+        </button>
+        <button type="button" className="secondary" onClick={onHint} disabled={busy}>
+          {hint ? "Pista revelada" : `Pedir pista (−${level.hint_cost} pts)`}
+        </button>
+      </div>
+    </form>
+  );
 
   return (
     <article className="level-view">
@@ -85,29 +167,14 @@ export function LevelPage() {
         <p>{level.description}</p>
       </header>
 
-      <form className="panel" onSubmit={onSubmit}>
-        <h2>Validar flag</h2>
-        <label>
-          Flag
-          <input
-            value={flag}
-            onChange={(e) => setFlag(e.target.value)}
-            placeholder="FLAG{…}"
-            autoComplete="off"
-            required
-          />
-        </label>
-        {message && <p className={`alert ${tone}`}>{message.message}</p>}
-        {error && <p className="alert error">{error}</p>}
-        <div className="actions">
-          <button type="submit" disabled={busy || level.status === "completed"}>
-            {level.status === "completed" ? "Nivel completado" : busy ? "Validando…" : "Enviar flag"}
-          </button>
-          <button type="button" className="secondary" onClick={onHint} disabled={busy}>
-            {hint ? "Pista revelada" : `Pedir pista (−${level.hint_cost} pts)`}
-          </button>
-        </div>
-      </form>
+      <LearningMode
+        content={level.tutorial_content}
+        enabled={learning}
+        onToggle={setLearning}
+        lab={labPanel}
+      >
+        {flagForm}
+      </LearningMode>
 
       {hint && (
         <aside className="panel hint-box">

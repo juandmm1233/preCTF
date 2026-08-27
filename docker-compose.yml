@@ -16,6 +16,62 @@ services:
       interval: 5s
       timeout: 5s
       retries: 12
+    networks:
+      - app
+
+  dockerproxy:
+    image: tecnativa/docker-socket-proxy:0.2.0
+    container_name: prectf_dockerproxy
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1
+      POST: 1
+      NETWORKS: 1
+      IMAGES: 1
+      INFO: 1
+      VERSION: 1
+      EVENTS: 1
+      BUILD: 0
+      EXEC: 0
+      VOLUMES: 0
+      AUTH: 0
+      SECRETS: 0
+      SWARM: 0
+      SERVICES: 0
+      TASKS: 0
+      NODES: 0
+      PLUGINS: 0
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - socket
+
+  lab-proxy:
+    image: traefik:v3.3
+    container_name: prectf_lab_proxy
+    restart: unless-stopped
+    command:
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --providers.file.watch=true
+      - --entrypoints.web.address=:80
+      - --log.level=INFO
+      - --accesslog=false
+    ports:
+      - "${LAB_PUBLIC_PORT:-8088}:80"
+    volumes:
+      - traefik_dynamic:/etc/traefik/dynamic
+    networks:
+      - challenges
+
+  challenge-n1:
+    image: ${CHALLENGE_N1_IMAGE:-prectf-challenge-n1:local}
+    build:
+      context: ${CTF_LAB_N1_CONTEXT:-../CTF ucc/ctf1}
+      dockerfile: ../../preCTF/challenges/n1/Dockerfile
+    profiles:
+      - build-labs
+    networks:
+      - challenges
 
   api:
     build:
@@ -27,11 +83,21 @@ services:
       - .env
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-prectf}:${POSTGRES_PASSWORD:-prectf}@db:5432/${POSTGRES_DB:-prectf}
+      DOCKER_HOST: tcp://dockerproxy:2375
+      CHALLENGE_NETWORK: prectf_challenges
+      TRAEFIK_DYNAMIC_DIR: /traefik/dynamic
+    volumes:
+      - traefik_dynamic:/traefik/dynamic
     depends_on:
       db:
         condition: service_healthy
+      dockerproxy:
+        condition: service_started
     ports:
       - "8001:8000"
+    networks:
+      - app
+      - socket
 
   web:
     build:
@@ -43,6 +109,17 @@ services:
       - api
     ports:
       - "80:80"
+    networks:
+      - app
 
 volumes:
   pgdata:
+  traefik_dynamic:
+
+networks:
+  app:
+    name: prectf_app
+  socket:
+    name: prectf_socket
+  challenges:
+    name: prectf_challenges
