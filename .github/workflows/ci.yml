@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+      
+      - name: Install dependencies
+        working-directory: backend
+        run: pip install -r requirements.txt
+      
+      - name: Run tests
+        working-directory: backend
+        env:
+          DATABASE_URL: sqlite:///:memory:
+          JWT_SECRET: ci-jwt-secret
+          TOKEN_SECRET: ci-token-secret
+          INSTRUCTOR_KEY: ci-instructor-key
+          ADMIN_EMAIL: instructor@ucc.local
+          ADMIN_PASSWORD: CambiaEstaClave!
+          ADMIN_CODE: DOCENTE
+          ADMIN_NAME: Instructor preCTF
+          PRECTF_FLAG_N1: FLAG{PRECTF_N1_SQLI}
+          PRECTF_FLAG_N2: FLAG{PRECTF_N2_COOKIE}
+          PRECTF_FLAG_N3: FLAG{PRECTF_N3_LFI}
+          PRECTF_FLAG_N4: FLAG{PRECTF_N4_CONFIG}
+          PRECTF_FLAG_N5: FLAG{PRECTF_N5_CMDI}
+          PRECTF_FLAG_N6: FLAG{PRECTF_N6_HASH}
+          PRECTF_FLAG_N7: FLAG{PRECTF_N7_UPLOAD}
+          PRECTF_FLAG_N8: FLAG{PRECTF_N8_SSH}
+        run: python -m pytest tests/ -v --tb=short
+
+  frontend-build:
+    name: Frontend Build & Typecheck
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+      
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+      
+      - name: TypeScript typecheck
+        working-directory: frontend
+        run: npm run typecheck
+      
+      - name: Build production bundle
+        working-directory: frontend
+        run: npm run build
