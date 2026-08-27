@@ -29,14 +29,14 @@ jobs:
       - name: Run tests
         working-directory: backend
         env:
-          DATABASE_URL: sqlite:///:memory:
-          JWT_SECRET: ci-jwt-secret
-          TOKEN_SECRET: ci-token-secret
-          INSTRUCTOR_KEY: ci-instructor-key
-          ADMIN_EMAIL: instructor@ucc.local
-          ADMIN_PASSWORD: CambiaEstaClave!
-          ADMIN_CODE: DOCENTE
-          ADMIN_NAME: Instructor preCTF
+          DATABASE_URL: 'sqlite:///:memory:'
+          JWT_SECRET: 'ci-jwt-secret'
+          TOKEN_SECRET: 'ci-token-secret'
+          INSTRUCTOR_KEY: 'ci-instructor-key'
+          ADMIN_EMAIL: 'instructor@ucc.local'
+          ADMIN_PASSWORD: 'CambiaEstaClave!'
+          ADMIN_CODE: 'DOCENTE'
+          ADMIN_NAME: 'Instructor preCTF'
           PRECTF_FLAG_N1: 'FLAG{PRECTF_N1_SQLI}'
           PRECTF_FLAG_N2: 'FLAG{PRECTF_N2_COOKIE}'
           PRECTF_FLAG_N3: 'FLAG{PRECTF_N3_LFI}'
