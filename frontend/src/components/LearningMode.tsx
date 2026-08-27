@@ -26,18 +26,20 @@ export function LabPanel({ environment, endpoint, busy, onStart, onStop }: LabPa
   const expiry = environment.expires_at
     ? new Date(environment.expires_at).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })
     : null;
-
-  function labHref(url: string | null): string | undefined {
-    if (!url) return undefined;
-    if (url.includes("index.php")) return url;
-    return `${url.replace(/\/$/, "")}/index.php`;
-  }
+  const activityPath = environment.activity_path || endpoint;
 
   return (
     <section className="panel lab-panel">
       <h2>Laboratorio aislado</h2>
       <p className="muted">
-        Instancia temporal de este nivel. Endpoint de referencia: <code>{endpoint}</code>
+        Es la misma instancia IDS para todos los niveles web. Este nivel se trabaja en{" "}
+        <code>{activityPath}</code>
+        {activityPath !== "/index.php" && (
+          <>
+            {" "}
+            (no sigas en <code>/index.php</code>).
+          </>
+        )}
       </p>
       <p className={`lab-status ${environment.status}`}>{envLabel(environment.status)}</p>
       {environment.message && <p className="alert error">{environment.message}</p>}
@@ -45,11 +47,11 @@ export function LabPanel({ environment, endpoint, busy, onStart, onStop }: LabPa
         <>
           <a
             className="button-link"
-            href={labHref(environment.public_url)}
+            href={environment.public_url ?? undefined}
             target="_blank"
             rel="noreferrer"
           >
-            Abrir instancia
+            Abrir {activityPath}
           </a>
           {expiry && <p className="muted">Caduca alrededor de las {expiry}.</p>}
           <p className="muted">La flag se valida en este panel, no en el laboratorio.</p>

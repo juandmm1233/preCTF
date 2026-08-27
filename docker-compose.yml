@@ -66,8 +66,10 @@ services:
   challenge-n1:
     image: ${CHALLENGE_N1_IMAGE:-prectf-challenge-n1:local}
     build:
-      context: ${CTF_LAB_N1_CONTEXT:-../CTF ucc/ctf1}
-      dockerfile: ../../preCTF/challenges/n1/Dockerfile
+      context: .
+      dockerfile: challenges/n1/Dockerfile
+      additional_contexts:
+        lab: ${CTF_LAB_N1_CONTEXT:-../CTF ucc/ctf1}
     profiles:
       - build-labs
     networks:

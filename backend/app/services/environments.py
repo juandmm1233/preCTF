@@ -32,8 +32,8 @@ def _user_short(user: User) -> str:
     return user.id.hex[:8]
 
 
-def _container_name(level: Level, user: User) -> str:
-    return f"prectf-n{level.order_index}-{_user_short(user)}"
+def _container_name(user: User) -> str:
+    return f"prectf-n1-{_user_short(user)}"
 
 
 def _route_file(name: str) -> Path:
@@ -69,17 +69,26 @@ def _remove_traefik_route(name: str) -> None:
         logger.exception("No se pudo borrar la ruta de Traefik %s", path)
 
 
-def _public_host(level: Level, user: User) -> str:
-    return f"n{level.order_index}-{_user_short(user)}.{settings.lab_base_domain}"
+def _activity_path(level: Level) -> str:
+    raw = (level.lab_endpoint or "").replace("+", " ")
+    for part in raw.split():
+        if part.startswith("/"):
+            return part.split("?")[0]
+    return "/index.php"
+
+
+def _public_host(user: User) -> str:
+    return f"n1-{_user_short(user)}.{settings.lab_base_domain}"
 
 
 def _public_url(level: Level, user: User) -> str:
-    host = _public_host(level, user)
+    host = _public_host(user)
+    path = _activity_path(level)
     port = settings.lab_public_port
     if port in (80, 443):
         scheme = "https" if port == 443 else "http"
-        return f"{scheme}://{host}/index.php"
-    return f"http://{host}:{port}/index.php"
+        return f"{scheme}://{host}{path}"
+    return f"http://{host}:{port}{path}"
 
 
 def _expected_image_id(client: docker.DockerClient, image: str) -> str | None:
@@ -103,10 +112,14 @@ def _container_uses_image(client: docker.DockerClient, container_id: str, image:
 
 
 def image_for_level(level: Level) -> str | None:
-    if level.order_index == 1 or level.slug == "sqli":
-        image = settings.challenge_n1_image.strip()
-        return image or None
-    return None
+    if level.is_bonus:
+        return None
+    image = settings.challenge_n1_image.strip()
+    return image or None
+
+
+def _shared_lab_level(db: Session) -> Level | None:
+    return db.scalar(select(Level).where(Level.order_index == 1).limit(1))
 
 
 def _client() -> docker.DockerClient:
@@ -122,12 +135,12 @@ def _ensure_unlocked(db: Session, user: User, level: Level) -> None:
         )
 
 
-def _active_session(db: Session, user: User, level: Level) -> LabSession | None:
+def _active_session(db: Session, user: User, shared: Level) -> LabSession | None:
     return db.scalar(
         select(LabSession)
         .where(
             LabSession.user_id == user.id,
-            LabSession.level_id == level.id,
+            LabSession.level_id == shared.id,
             LabSession.status.in_(ACTIVE_STATUSES),
         )
         .with_for_update()
@@ -182,7 +195,7 @@ def _is_expired(session: LabSession) -> bool:
     return expires <= _utc_now()
 
 
-def _stop_session(db: Session, session: LabSession, level: Level, user: User) -> None:
+def _stop_session(db: Session, session: LabSession, user: User) -> None:
     try:
         client = _client()
     except DockerException:
@@ -191,32 +204,36 @@ def _stop_session(db: Session, session: LabSession, level: Level, user: User) ->
         session.container_id = ""
         db.commit()
         return
-    _destroy_container(client, session, _container_name(level, user))
-    _remove_traefik_route(_container_name(level, user))
+    name = _container_name(user)
+    _destroy_container(client, session, name)
+    _remove_traefik_route(name)
     session.status = "stopped"
     session.container_id = ""
     db.commit()
 
 
-def _session_to_out(session: LabSession | None, level: Level) -> dict[str, Any]:
+def _session_to_out(session: LabSession | None, level: Level, user: User) -> dict[str, Any]:
     configured = image_for_level(level) is not None
+    path = _activity_path(level)
     base = {
         "status": "idle",
         "public_url": None,
         "expires_at": None,
-        "has_lab": level.order_index == 1 or configured,
+        "has_lab": configured,
+        "activity_path": path,
         "message": None,
     }
-    if not configured and level.order_index == 1:
+    if not configured:
         base["message"] = "El instructor aún no configuró CHALLENGE_N1_IMAGE."
     if session is None:
         return base
     if session.status in ACTIVE_STATUSES and not _is_expired(session):
         return {
             "status": session.status,
-            "public_url": session.public_url or None,
+            "public_url": _public_url(level, user),
             "expires_at": session.expires_at,
             "has_lab": True,
+            "activity_path": path,
             "message": None,
         }
     if session.status == "error":
@@ -225,21 +242,25 @@ def _session_to_out(session: LabSession | None, level: Level) -> dict[str, Any]:
             "public_url": None,
             "expires_at": None,
             "has_lab": base["has_lab"],
+            "activity_path": path,
             "message": "No se pudo levantar el laboratorio. Intenta de nuevo o avisa al instructor.",
         }
     return base
 
 
 def environment_snapshot(db: Session, user: User, level: Level) -> dict[str, Any]:
+    shared = _shared_lab_level(db)
+    if shared is None:
+        return _session_to_out(None, level, user)
     session = db.scalar(
         select(LabSession)
-        .where(LabSession.user_id == user.id, LabSession.level_id == level.id)
+        .where(LabSession.user_id == user.id, LabSession.level_id == shared.id)
         .order_by(LabSession.started_at.desc())
     )
     if session is not None and session.status in ACTIVE_STATUSES:
         if _is_expired(session):
-            _stop_session(db, session, level, user)
-            return _session_to_out(None, level)
+            _stop_session(db, session, user)
+            return _session_to_out(None, level, user)
         try:
             client = _client()
             wanted = image_for_level(level)
@@ -247,33 +268,28 @@ def environment_snapshot(db: Session, user: User, level: Level) -> dict[str, Any
                 client, session.container_id, wanted
             )
             if not _container_running(client, session.container_id) or stale:
-                _stop_session(db, session, level, user)
-                return _session_to_out(None, level)
+                _stop_session(db, session, user)
+                return _session_to_out(None, level, user)
         except DockerException:
             logger.exception("No se pudo verificar el laboratorio en Docker")
-    return _session_to_out(session, level)
+    return _session_to_out(session, level, user)
 
 
 def start_environment(db: Session, user: User, level: Level) -> dict[str, Any]:
     _ensure_unlocked(db, user, level)
     image = image_for_level(level)
-    if image is None:
-        if level.order_index == 1:
-            _http(
-                "LAB_IMAGE_NOT_CONFIGURED",
-                "El instructor no ha configurado la imagen del laboratorio (CHALLENGE_N1_IMAGE).",
-                status.HTTP_503_SERVICE_UNAVAILABLE,
-            )
+    shared = _shared_lab_level(db)
+    if image is None or shared is None:
         _http(
-            "LAB_NOT_AVAILABLE",
-            "Este nivel aún no tiene laboratorio aislado en preCTF.",
-            status.HTTP_404_NOT_FOUND,
+            "LAB_IMAGE_NOT_CONFIGURED",
+            "El instructor no ha configurado la imagen del laboratorio (CHALLENGE_N1_IMAGE).",
+            status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
-    existing = _active_session(db, user, level)
+    existing = _active_session(db, user, shared)
     if existing is not None:
         if _is_expired(existing):
-            _stop_session(db, existing, level, user)
+            _stop_session(db, existing, user)
         else:
             try:
                 client = _client()
@@ -288,8 +304,8 @@ def start_environment(db: Session, user: User, level: Level) -> dict[str, Any]:
             ):
                 existing.public_url = _public_url(level, user)
                 db.commit()
-                return _session_to_out(existing, level)
-            _stop_session(db, existing, level, user)
+                return _session_to_out(existing, level, user)
+            _stop_session(db, existing, user)
 
     if _count_active(db) >= settings.prectf_max_lab_sessions:
         _http(
@@ -318,13 +334,13 @@ def start_environment(db: Session, user: User, level: Level) -> dict[str, Any]:
 
     now = _utc_now()
     expires = now + timedelta(minutes=settings.lab_ttl_minutes)
-    name = _container_name(level, user)
-    host = _public_host(level, user)
+    name = _container_name(user)
+    host = _public_host(user)
     url = _public_url(level, user)
 
     session = LabSession(
         user_id=user.id,
-        level_id=level.id,
+        level_id=shared.id,
         container_id="",
         status="starting",
         public_url=url,
@@ -346,6 +362,13 @@ def start_environment(db: Session, user: User, level: Level) -> dict[str, Any]:
             "DB_ADMIN_PASS": "ctf_admin_pass",
             "DB_NAME": "ctf_login",
             "PRECTF_FLAG_N1": settings.prectf_flag_n1,
+            "PRECTF_FLAG_N2": settings.prectf_flag_n2,
+            "PRECTF_FLAG_N3": settings.prectf_flag_n3,
+            "PRECTF_FLAG_N4": settings.prectf_flag_n4,
+            "PRECTF_FLAG_N5": settings.prectf_flag_n5,
+            "PRECTF_FLAG_N6": settings.prectf_flag_n6,
+            "PRECTF_FLAG_N7": settings.prectf_flag_n7,
+            "PRECTF_FLAG_N8": settings.prectf_flag_n8,
         }
         container = client.containers.run(
             image=image,
@@ -359,7 +382,7 @@ def start_environment(db: Session, user: User, level: Level) -> dict[str, Any]:
             security_opt=["no-new-privileges:true"],
             labels={
                 "prectf.managed": "true",
-                "prectf.level": str(level.id),
+                "prectf.level": str(shared.id),
                 "prectf.user": str(user.id),
             },
         )
@@ -397,16 +420,19 @@ def start_environment(db: Session, user: User, level: Level) -> dict[str, Any]:
     session.status = "running"
     db.commit()
     db.refresh(session)
-    return _session_to_out(session, level)
+    return _session_to_out(session, level, user)
 
 
 def stop_environment(db: Session, user: User, level: Level) -> dict[str, Any]:
     _ensure_unlocked(db, user, level)
-    session = _active_session(db, user, level)
+    shared = _shared_lab_level(db)
+    if shared is None:
+        return _session_to_out(None, level, user)
+    session = _active_session(db, user, shared)
     if session is None:
-        return _session_to_out(None, level)
-    _stop_session(db, session, level, user)
-    return _session_to_out(None, level)
+        return _session_to_out(None, level, user)
+    _stop_session(db, session, user)
+    return _session_to_out(None, level, user)
 
 
 def reap_expired_sessions() -> None:
@@ -429,9 +455,8 @@ def reap_expired_sessions() -> None:
             logger.exception("Reaper: Docker no disponible")
             return
         for row in rows:
-            level = db.get(Level, row.level_id)
             user = db.get(User, row.user_id)
-            name = _container_name(level, user) if level and user else None
+            name = _container_name(user) if user else None
             if name:
                 _remove_traefik_route(name)
             _destroy_container(client, row, name)

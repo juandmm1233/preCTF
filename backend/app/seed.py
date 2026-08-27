@@ -31,6 +31,33 @@ Si la autenticación no trata las credenciales como datos, la instancia de entre
 Esta guía no incluye payloads ni procedimientos de explotación.
 """
 
+TUTORIAL_N2 = """## Qué es este vector
+
+El control de acceso roto aparece cuando el servidor **confía en un dato que el cliente puede cambiar** (cookie, cabecera o campo oculto) para decidir si alguien es administrador. Quien controla el navegador controla ese valor.
+
+## Cómo identificarlo (sin explotar)
+
+Usa **la misma instancia IDS** del Nivel 1. No abras otro laboratorio: cambia de ruta.
+
+La actividad de este nivel está en `/admin.php` (no en `/index.php`).
+
+Observa:
+
+1. ¿El panel consulta el rol en el servidor (sesión, base de datos) o lee un valor que el navegador envía?
+2. ¿Ese valor se firma, o se puede editar en las herramientas de desarrollo?
+3. `/robots.txt` a veces documenta rutas que no deberían ser secretas.
+
+Si el servidor no autentica el privilegio, la instancia oculta la flag de este nivel. Recupérala y **envíala en este panel**.
+
+## Cómo se corrige
+
+- Autorización en el servidor, nunca solo en el cliente.
+- Cookies de sesión firmadas y `HttpOnly`; el rol no se toma de un campo editable.
+- IDs y roles ligados a la sesión autenticada.
+
+Esta guía no incluye payloads ni procedimientos de explotación.
+"""
+
 LEVELS = [
     {
         "id": 1,
@@ -61,7 +88,7 @@ LEVELS = [
         "lab_endpoint": "/admin.php",
         "points": 75,
         "hint_cost": 15,
-        "tutorial_content": "",
+        "tutorial_content": TUTORIAL_N2,
         "description": (
             "El panel administrativo decide el rol con un valor que el navegador envía. "
             "Un control de acceso sólido se verifica en el servidor, no en el cliente."

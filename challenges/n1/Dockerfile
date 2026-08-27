@@ -1,7 +1,8 @@
-# Empaqueta el laboratorio CTF UCC existente (ctf1) para preCTF Nivel 1.
-# Contexto de build: el directorio ctf1 (servidor_web + mysql_ssh).
-# Este repositorio no duplica el código del lab.
+# Empaqueta el laboratorio CTF UCC (ctf1) y sustituye sus flags por las de preCTF.
+# Contexto principal: este repositorio. Contexto `lab`: carpeta ctf1.
+# Este repositorio no duplica el código vulnerable del lab.
 
+# syntax=docker/dockerfile:1.7
 FROM php:8.2-apache
 
 ENV DEBIAN_FRONTEND=noninteractive \
@@ -24,8 +25,14 @@ RUN apt-get update \
     && mkdir -p /var/run/mysqld \
     && chown mysql:mysql /var/run/mysqld
 
-COPY servidor_web/ /var/www/html/
-COPY mysql_ssh/init.sql /opt/init.sql
+COPY --from=lab servidor_web/ /var/www/html/
+COPY --from=lab mysql_ssh/init.sql /opt/init.sql
+COPY challenges/n1/overlay/apply-flags.php /usr/local/bin/prectf-apply-flags.php
+
+RUN mkdir -p /opt/prectf/templates \
+    && cp /var/www/html/admin.php /opt/prectf/templates/admin.php \
+    && cp /var/www/html/bucket/admin_notes.md /opt/prectf/templates/admin_notes.md \
+    && cp /var/www/html/config/app.ini /opt/prectf/templates/app.ini
 
 RUN printf '%s\n' \
     '<?php' \
@@ -45,16 +52,17 @@ RUN printf '%s\n' \
 RUN printf '%s\n' \
     '#!/bin/bash' \
     'set -euo pipefail' \
-    'mkdir -p /var/run/mysqld' \
+    'mkdir -p /var/run/mysqld /home/admin /opt/prectf' \
     'chown mysql:mysql /var/run/mysqld' \
     'mysqld --user=mysql --datadir=/var/lib/mysql --bind-address=127.0.0.1 --socket=/var/run/mysqld/mysqld.sock &' \
     'for i in $(seq 1 40); do' \
     '  mysqladmin --socket=/var/run/mysqld/mysqld.sock ping --silent && break' \
     '  sleep 1' \
     'done' \
+    'php /usr/local/bin/prectf-apply-flags.php || echo "prectf-flags: no se pudieron aplicar las banderas de entrenamiento"' \
     'exec apache2-foreground' \
     > /usr/local/bin/prectf-n1-entry.sh \
-    && chmod +x /usr/local/bin/prectf-n1-entry.sh
+    && chmod +x /usr/local/bin/prectf-n1-entry.sh /usr/local/bin/prectf-apply-flags.php
 
 RUN mysql_install_db --user=mysql --datadir=/var/lib/mysql \
     && mysqld --user=mysql --datadir=/var/lib/mysql --bind-address=127.0.0.1 --socket=/var/run/mysqld/mysqld.sock & \

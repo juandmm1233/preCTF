@@ -57,6 +57,7 @@ class EnvironmentOut(BaseModel):
     public_url: str | None = None
     expires_at: datetime | None = None
     has_lab: bool = False
+    activity_path: str | None = None
     message: str | None = None
 
 

@@ -15,6 +15,7 @@ export type LabEnvironment = {
   public_url: string | null;
   expires_at: string | null;
   has_lab: boolean;
+  activity_path?: string | null;
   message: string | null;
 };
 

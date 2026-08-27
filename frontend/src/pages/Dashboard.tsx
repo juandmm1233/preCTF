@@ -34,8 +34,10 @@ export function DashboardPage() {
           <p className="eyebrow">Progreso de {user?.full_name}</p>
           <h1>Ruta de 8 niveles</h1>
           <p className="muted">
-            Debes superar cada vector en orden. Las pistas restan puntos. Al completar el
-            último nivel se emite tu token de acceso al CTF práctico.
+            Debes superar cada vector en orden. Hay una sola instancia IDS: cada nivel usa
+            una ruta distinta (N1 <code>/index.php</code>, N2 <code>/admin.php</code>, …).
+            Las pistas restan puntos. Al completar el último nivel se emite tu token de
+            acceso al CTF práctico.
           </p>
         </div>
         <div className="progress-box">

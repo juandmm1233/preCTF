@@ -13,8 +13,10 @@ docker compose --profile build-labs build challenge-n1
 O a mano:
 
 ```bash
-docker build -f ./challenges/n1/Dockerfile -t prectf-challenge-n1:local "D:/juandmm1233/CTF ucc/ctf1"
+docker build -f ./challenges/n1/Dockerfile --build-context lab="D:/juandmm1233/CTF ucc/ctf1" -t prectf-challenge-n1:local .
 ```
+
+Las banderas visibles en la instancia son las de este repositorio (`FLAG{PRECTF_N*}`), no las `FLAG{UCC_*}` del laboratorio de clase.
 
 `.env`:
 
@@ -29,7 +31,7 @@ Luego:
 docker compose up -d --build api
 ```
 
-En el Nivel 1, *Iniciar lección* abre `http://n1-{8hex}.localhost:8088/index.php` con el formulario IDS.
+En el Nivel 1, *Iniciar lección* abre `http://n1-{8hex}.localhost:8088/index.php`. El Nivel 2 usa **la misma instancia** en `/admin.php`.
 
 La flag de entrenamiento (`PRECTF_FLAG_N1`) aparece en el dashboard **después** de autenticarse. Hay que validarla en preCTF, no en el scoreboard 15v15.
 

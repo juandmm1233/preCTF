@@ -58,13 +58,21 @@ docker compose up -d --build
 - UI: http://localhost
 - API: http://localhost:8001/api/health
 - Docs: http://localhost:8001/docs
-- Labs (Traefik): http://n1-{8hex}.localhost:8088  (tras *Iniciar lección* en el Nivel 1)
+- Labs (Traefik): http://n1-{8hex}.localhost:8088  (tras *Iniciar lección*; misma instancia para todos los niveles web)
 
 Cuenta instructor por defecto (cámbiala): `instructor@ucc.local` / `CambiaEstaClave!`.
 
-### Laboratorio aislado del Nivel 1
+### Laboratorio aislado (una instancia IDS, varias rutas)
 
-El login de práctica es el de **CTF UCC `ctf1`** (Ibague Data Services). preCTF no copia ese código: construye una imagen desde la carpeta del lab.
+Los niveles 1–7 se resuelven **en el mismo contenedor** (Ibague Data Services / `ctf1`). El Nivel 2 no es otro laboratorio: es otra ruta.
+
+| Tras *Iniciar lección* | Abrir |
+|------------------------|--------|
+| Nivel 1 | `http://n1-{8hex}.localhost:8088/index.php` |
+| Nivel 2 | `http://n1-{8hex}.localhost:8088/admin.php` |
+| Nivel 3 | `http://n1-{8hex}.localhost:8088/download.php` |
+
+El login de práctica es el de **CTF UCC `ctf1`**. preCTF no copia ese código: construye una imagen desde la carpeta del lab.
 
 ```bash
 docker compose --profile build-labs build challenge-n1
@@ -73,7 +81,7 @@ docker compose up -d --build api
 
 En `.env`: `CHALLENGE_N1_IMAGE=prectf-challenge-n1:local` y, si el lab no está al lado, `CTF_LAB_N1_CONTEXT` con la ruta a `ctf1`. Detalle en [`challenges/n1/README.md`](challenges/n1/README.md).
 
-Tras *Iniciar lección*, abre `/index.php` en la instancia. La flag `PRECTF_FLAG_N1` se muestra al autenticarse; valídala en este panel.
+Tras *Iniciar lección*, el botón del panel abre la ruta del nivel actual (`/index.php` en N1, `/admin.php` en N2, …). Las banderas de la instancia son las de este repo (`FLAG{PRECTF_N*}`), no las `FLAG{UCC_*}` del laboratorio de clase. Valídalas en preCTF.
 
 - Tope simultáneo: `PRECTF_MAX_LAB_SESSIONS` (por defecto 20).
 - Cada instancia caduca a los `LAB_TTL_MINUTES` (45).
@@ -111,7 +119,7 @@ Límite de envíos: 30 por minuto y estudiante.
 - `submissions` — auditoría de envíos
 - `hint_uses` — pistas cobradas
 - `honeypots` — hashes que penalizan
-- `lab_sessions` — contenedor, URL y caducidad por estudiante y nivel
+- `lab_sessions` — un contenedor IDS por estudiante (reutilizado en los niveles web)
 - `access_tokens` — `PRECTF-UCC-{año}-{user8}-{nonce}.{hmac}`
 
 ## Verificación del token (instructor)

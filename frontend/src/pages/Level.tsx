@@ -163,7 +163,9 @@ export function LevelPage() {
         </p>
         <h1>{level.title}</h1>
         <p className="vector">{level.vector_name}</p>
-        <p className="muted">Referencia en el laboratorio: {level.lab_endpoint}</p>
+        <p className="muted">
+          Misma instancia IDS. Ruta de este nivel: <code>{level.lab_endpoint}</code>
+        </p>
         <p>{level.description}</p>
       </header>
 
