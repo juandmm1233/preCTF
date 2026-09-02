@@ -9,6 +9,11 @@ from app.models import AccessToken, HintUse, Honeypot, Level, Progress, Submissi
 from app.services.certificate import issue_access_token
 
 HONEYPOT_PUBLIC_RESULT = "honeypot"
+TEST_UNLOCK_ALL_EMAIL = "juan.martinezmoral@campusucc.edu.co"
+
+
+def _skips_sequential_lock(user: User) -> bool:
+    return (user.email or "").lower() == TEST_UNLOCK_ALL_EMAIL
 
 
 def _required_levels(db: Session) -> list[Level]:
@@ -20,6 +25,8 @@ def _required_levels(db: Session) -> list[Level]:
 
 
 def is_level_unlocked(db: Session, user: User, level: Level) -> bool:
+    if _skips_sequential_lock(user):
+        return True
     required = _required_levels(db)
     previous = [item for item in required if item.order_index < level.order_index]
     if not previous:

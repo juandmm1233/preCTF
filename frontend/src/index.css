@@ -325,6 +325,74 @@ input {
   border-color: rgba(245, 185, 66, 0.4);
 }
 
+.theory-accordion {
+  border-color: rgba(245, 185, 66, 0.35);
+}
+
+.theory-accordion summary {
+  cursor: pointer;
+  list-style: none;
+  font-weight: 700;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.theory-accordion summary::-webkit-details-marker {
+  display: none;
+}
+
+.theory-accordion summary::after {
+  content: "▾";
+  color: var(--amber);
+  font-size: 0.95rem;
+  transition: transform 0.15s ease;
+}
+
+.theory-accordion:not([open]) summary::after {
+  transform: rotate(-90deg);
+}
+
+.theory-body {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--line);
+}
+
+.theory-body h3 {
+  margin: 0 0 0.35rem;
+  color: var(--amber);
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+}
+
+.theory-body p {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.98rem;
+  line-height: 1.6;
+}
+
+.theory-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  color: var(--text);
+  font-size: 0.98rem;
+  line-height: 1.6;
+}
+
+.theory-list li {
+  margin: 0.35rem 0;
+}
+
+.theory-accordion .button-link {
+  width: fit-content;
+}
+
 .learning-bar {
   background: var(--bg-elev);
   border: 1px solid rgba(245, 185, 66, 0.45);

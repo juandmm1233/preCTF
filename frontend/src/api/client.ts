@@ -37,6 +37,10 @@ export type LevelCard = {
 
 export type LevelDetail = LevelCard & {
   tutorial_content: string;
+  explanation: string;
+  goal: string;
+  prevention: string;
+  tutorial_url: string;
   environment: LabEnvironment;
 };
 

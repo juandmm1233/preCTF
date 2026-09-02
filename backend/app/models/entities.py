@@ -43,6 +43,10 @@ class Level(Base):
     hint_text: Mapped[str] = mapped_column(Text)
     is_bonus: Mapped[bool] = mapped_column(Boolean, default=False)
     tutorial_content: Mapped[str] = mapped_column(Text, default="")
+    explanation: Mapped[str] = mapped_column(Text, default="")
+    goal: Mapped[str] = mapped_column(Text, default="")
+    prevention: Mapped[str] = mapped_column(Text, default="")
+    tutorial_url: Mapped[str] = mapped_column(String(512), default="")
 
 
 class Progress(Base):

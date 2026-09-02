@@ -1,9 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
-import ReactMarkdown from "react-markdown";
-import rehypeSanitize from "rehype-sanitize";
+import { type ReactNode } from "react";
 import type { LabEnvironment } from "../api/client";
-
-const LEARNING_KEY = "prectf_learning_mode";
 
 function envLabel(status: LabEnvironment["status"]): string {
   if (status === "running") return "En ejecución";
@@ -70,63 +66,15 @@ export function LabPanel({ environment, endpoint, busy, onStart, onStop }: LabPa
 }
 
 type LearningModeProps = {
-  content: string;
-  enabled: boolean;
-  onToggle: (value: boolean) => void;
   lab: ReactNode;
   children: ReactNode;
 };
 
-export function useLearningMode(defaultEnabled = true): [boolean, (value: boolean) => void] {
-  const [enabled, setEnabled] = useState(() => {
-    const stored = sessionStorage.getItem(LEARNING_KEY);
-    if (stored === null) return defaultEnabled;
-    return stored === "1";
-  });
-
-  useEffect(() => {
-    sessionStorage.setItem(LEARNING_KEY, enabled ? "1" : "0");
-  }, [enabled]);
-
-  return [enabled, setEnabled];
-}
-
-export function LearningMode({ content, enabled, onToggle, lab, children }: LearningModeProps) {
+export function LearningMode({ lab, children }: LearningModeProps) {
   return (
     <>
-      <div className="learning-bar">
-        <label className="learning-toggle">
-          <input type="checkbox" checked={enabled} onChange={(event) => onToggle(event.target.checked)} />
-          <span>
-            <strong>Modo aprendizaje</strong>
-            <em>Teoría del vector y laboratorio aislado</em>
-          </span>
-        </label>
-      </div>
-      {enabled ? (
-        <div className="level-split">
-          <section className="panel markdown-panel">
-            <p className="eyebrow">Teoría</p>
-            <h2>Guía conceptual</h2>
-            {content.trim() ? (
-              <div className="markdown-body">
-                <ReactMarkdown rehypePlugins={[rehypeSanitize]}>{content}</ReactMarkdown>
-              </div>
-            ) : (
-              <p className="muted">Este nivel aún no tiene tutorial. Usa la descripción y la pista conceptual.</p>
-            )}
-          </section>
-          <div className="level-split-right">
-            {lab}
-            {children}
-          </div>
-        </div>
-      ) : (
-        <>
-          {lab}
-          {children}
-        </>
-      )}
+      {lab}
+      {children}
     </>
   );
 }

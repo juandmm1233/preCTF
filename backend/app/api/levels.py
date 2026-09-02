@@ -1,3 +1,5 @@
+from urllib.parse import urlparse
+
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -17,6 +19,16 @@ from app.services.progression import (
 from app.services.rate_limit import check_submit_rate
 
 router = APIRouter(prefix="/levels", tags=["levels"])
+
+
+def _public_tutorial_url(raw: str | None) -> str:
+    value = (raw or "").strip()
+    if not value or "URL_DEL_TUTORIAL" in value.upper():
+        return ""
+    parsed = urlparse(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return ""
+    return value
 
 
 def _get_level(db: Session, level_id: int) -> Level:
@@ -67,6 +79,10 @@ def get_level(
         hint_used=level.id in hinted,
         completed_at=completed_at,
         tutorial_content=level.tutorial_content or "",
+        explanation=level.explanation or "",
+        goal=level.goal or "",
+        prevention=level.prevention or "",
+        tutorial_url=_public_tutorial_url(level.tutorial_url),
         environment=EnvironmentOut(**environment_snapshot(db, user, level)),
     )
 

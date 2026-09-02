@@ -79,6 +79,10 @@ class LevelCardOut(BaseModel):
 
 class LevelDetailOut(LevelCardOut):
     tutorial_content: str
+    explanation: str = ""
+    goal: str = ""
+    prevention: str = ""
+    tutorial_url: str = ""
     environment: EnvironmentOut
 
 

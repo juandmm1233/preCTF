@@ -1,7 +1,8 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import { api, type LabEnvironment, type LevelDetail, type SubmitResult } from "../api/client";
-import { LabPanel, LearningMode, useLearningMode } from "../components/LearningMode";
+import { LabPanel, LearningMode } from "../components/LearningMode";
+import { TheoryAccordion } from "../components/TheoryAccordion";
 import { useAuth } from "../context/AuthContext";
 
 export function LevelPage() {
@@ -18,7 +19,6 @@ export function LevelPage() {
   const [busy, setBusy] = useState(false);
   const [labBusy, setLabBusy] = useState(false);
   const [locked, setLocked] = useState(false);
-  const [learning, setLearning] = useLearningMode(true);
 
   useEffect(() => {
     api
@@ -169,14 +169,14 @@ export function LevelPage() {
         <p>{level.description}</p>
       </header>
 
-      <LearningMode
-        content={level.tutorial_content}
-        enabled={learning}
-        onToggle={setLearning}
-        lab={labPanel}
-      >
-        {flagForm}
-      </LearningMode>
+      <TheoryAccordion
+        explanation={level.explanation ?? ""}
+        goal={level.goal ?? ""}
+        prevention={level.prevention ?? ""}
+        tutorialUrl={level.tutorial_url ?? ""}
+      />
+
+      <LearningMode lab={labPanel}>{flagForm}</LearningMode>
 
       {hint && (
         <aside className="panel hint-box">

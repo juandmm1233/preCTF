@@ -5,59 +5,6 @@ from app.core.database import SessionLocal
 from app.core.security import hash_flag, hash_password
 from app.models import Honeypot, Level, User
 
-TUTORIAL_N1 = """## Qué es este vector
-
-La inyección SQL aparece cuando la aplicación mezcla **estructura de la consulta** con **datos del usuario**. El motor de base de datos deja de distinguir un identificador (nombre, clave) de un trozo de SQL.
-
-En un login, el síntoma típico es que el resultado de la autenticación depende de cómo se arma la sentencia, no solo de si las credenciales coinciden.
-
-## Cómo identificarlo (sin explotar)
-
-El laboratorio de este nivel expone un formulario en `/index.php`. El trabajo de observación es decidir si usuario y contraseña se tratan como **parámetros** o se interpolan en una cadena:
-
-1. ¿La consulta se construye concatenando texto del formulario, o usa placeholders (`?` / nombres enlazados)?
-2. ¿El plan de la consulta es fijo, independiente de lo que se escribe en los campos?
-3. ¿Un error de autenticación se explica por credenciales incorrectas, o por un cambio en la lógica de la sentencia?
-
-Si la autenticación no trata las credenciales como datos, la instancia de entrenamiento oculta la flag de este nivel. Recupérala en el laboratorio aislado y **envíala en este panel**.
-
-## Cómo se corrige
-
-- Consultas parametrizadas (prepared statements) en el servidor.
-- Cuenta de base de datos con privilegios mínimos: el usuario de la app web no debe leer secretos ajenos al login.
-- Nunca concatenar entrada de usuario dentro de SQL.
-- Registrar y limitar intentos de autenticación.
-
-Esta guía no incluye payloads ni procedimientos de explotación.
-"""
-
-TUTORIAL_N2 = """## Qué es este vector
-
-El control de acceso roto aparece cuando el servidor **confía en un dato que el cliente puede cambiar** (cookie, cabecera o campo oculto) para decidir si alguien es administrador. Quien controla el navegador controla ese valor.
-
-## Cómo identificarlo (sin explotar)
-
-Usa **la misma instancia IDS** del Nivel 1. No abras otro laboratorio: cambia de ruta.
-
-La actividad de este nivel está en `/admin.php` (no en `/index.php`).
-
-Observa:
-
-1. ¿El panel consulta el rol en el servidor (sesión, base de datos) o lee un valor que el navegador envía?
-2. ¿Ese valor se firma, o se puede editar en las herramientas de desarrollo?
-3. `/robots.txt` a veces documenta rutas que no deberían ser secretas.
-
-Si el servidor no autentica el privilegio, la instancia oculta la flag de este nivel. Recupérala y **envíala en este panel**.
-
-## Cómo se corrige
-
-- Autorización en el servidor, nunca solo en el cliente.
-- Cookies de sesión firmadas y `HttpOnly`; el rol no se toma de un campo editable.
-- IDs y roles ligados a la sesión autenticada.
-
-Esta guía no incluye payloads ni procedimientos de explotación.
-"""
-
 LEVELS = [
     {
         "id": 1,
@@ -68,7 +15,25 @@ LEVELS = [
         "lab_endpoint": "/index.php",
         "points": 50,
         "hint_cost": 10,
-        "tutorial_content": TUTORIAL_N1,
+        "tutorial_content": "",
+        "explanation": (
+            "La inyección SQL aparece cuando la aplicación mezcla la estructura de la "
+            "consulta con datos del usuario. El motor de base de datos deja de distinguir "
+            "un identificador (nombre, clave) de un trozo de SQL. En un login, el síntoma "
+            "típico es que el resultado depende de cómo se arma la sentencia."
+        ),
+        "goal": (
+            "El laboratorio expone un formulario en `/index.php`. Tu trabajo es inyectar "
+            "código (ej. ' OR '1'='1) para obligar a la consulta a evaluar una condición "
+            "como verdadera, sin importar la contraseña. Recupera la flag oculta tras "
+            "evadir el inicio de sesión."
+        ),
+        "prevention": (
+            "1. Usa consultas parametrizadas (prepared statements) en el servidor.\n"
+            "2. Aplica el principio de mínimos privilegios en la base de datos.\n"
+            "3. Nunca concatenes entradas del usuario directamente dentro de sentencias SQL."
+        ),
+        "tutorial_url": "https://www.youtube.com/watch?v=EWGUznyQIhE",
         "description": (
             "El inicio de sesión construye la consulta con datos del formulario. "
             "Identifica por qué la autenticación no trata las credenciales como datos "
@@ -88,7 +53,28 @@ LEVELS = [
         "lab_endpoint": "/admin.php",
         "points": 75,
         "hint_cost": 15,
-        "tutorial_content": TUTORIAL_N2,
+        "tutorial_content": "",
+        "explanation": (
+            "El control de acceso roto (Cookie Tampering) ocurre cuando una aplicación "
+            "confía ciegamente en datos almacenados en el navegador del usuario (como "
+            "cookies o Local Storage) para determinar sus permisos. Un atacante puede "
+            "interceptar y alterar estos valores libremente."
+        ),
+        "goal": (
+            "La instancia genera una cookie al ingresar. Inspecciona las herramientas de "
+            "desarrollo de tu navegador (F12 > Aplicación/Almacenamiento). Encuentra la "
+            "cookie que define tu rol, modifícala para suplantar a un administrador, "
+            "recarga la página y captura la flag."
+        ),
+        "prevention": (
+            "1. Nunca almacenes información de roles o estados de autorización en texto "
+            "plano en el cliente.\n"
+            "2. Implementa la validación de sesión y control de acceso estrictamente "
+            "en el backend.\n"
+            "3. Si debes enviar estado al cliente, utiliza tokens seguros y firmados "
+            "criptográficamente (como JWT bien configurados)."
+        ),
+        "tutorial_url": "https://www.youtube.com/watch?v=Z261_-MPvZY",
         "description": (
             "El panel administrativo decide el rol con un valor que el navegador envía. "
             "Un control de acceso sólido se verifica en el servidor, no en el cliente."
@@ -102,20 +88,39 @@ LEVELS = [
         "id": 3,
         "order_index": 3,
         "slug": "lfi",
-        "title": "Lectura de archivos fuera de alcance",
-        "vector_name": "LFI / Path Traversal",
+        "title": "Notas internas en el bucket",
+        "vector_name": "Information disclosure (objetos del bucket)",
         "lab_endpoint": "/download.php",
         "points": 60,
         "hint_cost": 15,
         "tutorial_content": "",
+        "explanation": (
+            "Antes de hablar de salir del directorio, hay un fallo más básico: el visor "
+            "de Storage trata como objeto público todo lo que está en el bucket, incluidas "
+            "notas de administración. Si la interfaz lista esos archivos, no hace falta "
+            "alterar la ruta: el filtrado ya ocurrió al publicarlos."
+        ),
+        "goal": (
+            "Abre el visor de `/download.php` y revisa los objetos que la propia página "
+            "ofrece. La flag de este nivel está en un archivo del bucket que no debería "
+            "ser público. No necesitas salir de esa carpeta; eso corresponde al nivel 4."
+        ),
+        "prevention": (
+            "1. Separa el contenido público del interno: las notas de administración no "
+            "pertenecen al bucket descargable.\n"
+            "2. Lista blanca de nombres o IDs de objeto, no un listado de todo el directorio.\n"
+            "3. El control de acceso debe aplicarse por objeto, no solo por estar logueado."
+        ),
+        "tutorial_url": "https://www.youtube.com/watch?v=8r1HQVZZ6hU",
         "description": (
-            "El visor de archivos del bucket concatena la ruta pedida por el usuario. "
-            "Sin una ancla al directorio base, se pueden leer recursos que no deberían "
-            "exponerse."
+            "El visor concatena el nombre pedido y, además, enlaza varios archivos del "
+            "bucket. Uno de ellos es material interno. Este nivel se resuelve enumerando "
+            "lo que ya está expuesto, sin modificar directorios."
         ),
         "hint_text": (
-            "El parámetro file de /download.php une rutas. Contrasta el directorio bucket "
-            "con cualquier ruta que escape de esa carpeta."
+            "En `/download.php` hay accesos directos a objetos del bucket. Distingue un "
+            "archivo de bienvenida de unas notas que no deberían estar ahí. robots.txt "
+            "en esa misma lista es otra pista de superficie, no la flag."
         ),
     },
     {
@@ -124,10 +129,28 @@ LEVELS = [
         "slug": "config-leak",
         "title": "Divulgación de configuración",
         "vector_name": "Information disclosure (config leak)",
-        "lab_endpoint": "/download.php + config/app.ini",
+        "lab_endpoint": "/download.php",
         "points": 70,
         "hint_cost": 15,
         "tutorial_content": "",
+        "explanation": (
+            "El mismo visor del nivel 3 concatena la ruta al directorio del bucket "
+            "sin comprobar que el archivo resultante siga dentro de esa carpeta. "
+            "Ahí aparece el Path Traversal: un nombre de objeto deja de ser un "
+            "nombre y pasa a ser una ruta relativa hacia archivos de configuración."
+        ),
+        "goal": (
+            "Usa lo que ya viste en las notas del bucket: hay un archivo de "
+            "configuración fuera de esa carpeta. Este nivel sí exige que el visor "
+            "salga del directorio base. La flag no está en los objetos listados."
+        ),
+        "prevention": (
+            "1. Resuelve la ruta con una función de canonización y verifica que "
+            "quede dentro del directorio base.\n"
+            "2. Rechaza separadores de ruta y nombres que no coincidan con una lista blanca.\n"
+            "3. No sirvas archivos de configuración de la aplicación por el mismo visor."
+        ),
+        "tutorial_url": "URL_DEL_TUTORIAL_AQUI",
         "description": (
             "Si el lector de archivos no está acotado, los archivos de configuración "
             "fuera del bucket quedan al alcance. Encadena el hallazgo del nivel anterior."
@@ -147,6 +170,17 @@ LEVELS = [
         "points": 80,
         "hint_cost": 20,
         "tutorial_content": "",
+        "explanation": (
+            "El Command Injection ocurre cuando la aplicación toma la entrada del "
+            "usuario y la pasa directamente a la consola del sistema operativo sin "
+            "validación, permitiendo a un atacante concatenar comandos maliciosos."
+        ),
+        "goal": (
+            "Inyecta comandos del sistema operativo (usando separadores como ; o &&) "
+            "en el formulario de diagnóstico para ejecutar comandos arbitrarios y "
+            "leer la flag."
+        ),
+        "tutorial_url": "https://www.youtube.com/watch?v=4Ep3Pe0_6xA",
         "description": (
             "La herramienta de red toma un host y lo pasa a una utilidad del sistema. "
             "Separar datos de comandos es el control que falta."
@@ -166,6 +200,17 @@ LEVELS = [
         "points": 100,
         "hint_cost": 20,
         "tutorial_content": "",
+        "explanation": (
+            "El uso de algoritmos de hashing criptográficamente rotos u obsoletos "
+            "(como MD5) permite a los atacantes descifrar contraseñas rápidamente "
+            "utilizando ataques de diccionario, fuerza bruta o Rainbow Tables."
+        ),
+        "goal": (
+            "Identifica el hash MD5 filtrado en la aplicación y descífralo utilizando "
+            "herramientas como Hashcat, John the Ripper o bases de datos en línea "
+            "para obtener la flag."
+        ),
+        "tutorial_url": "URL_DEL_TUTORIAL_AQUI",
         "description": (
             "Hay secretos almacenados con un algoritmo de hash obsoleto. "
             "La misma familia de fallos de autenticación del nivel 1 puede exponer "
@@ -186,6 +231,16 @@ LEVELS = [
         "points": 120,
         "hint_cost": 25,
         "tutorial_content": "",
+        "explanation": (
+            "La vulnerabilidad de Unrestricted File Upload se da cuando la aplicación "
+            "permite subir archivos sin validar correctamente su extensión, tipo MIME "
+            "o contenido, lo que posibilita subir scripts maliciosos ejecutables."
+        ),
+        "goal": (
+            "Sube una webshell o un script malicioso disfrazado al servidor para "
+            "ganar ejecución remota de código (RCE) y extraer la flag del sistema."
+        ),
+        "tutorial_url": "URL_DEL_TUTORIAL_AQUI",
         "description": (
             "El módulo de almacenamiento acepta archivos y los deja donde el "
             "servidor web puede interpretarlos. Extensión, tipo y carpeta de destino "
@@ -206,6 +261,17 @@ LEVELS = [
         "points": 150,
         "hint_cost": 25,
         "tutorial_content": "",
+        "explanation": (
+            "Los servicios de administración expuestos (como SSH) que utilizan "
+            "contraseñas por defecto, credenciales débiles o predecibles, son "
+            "altamente susceptibles a ataques de fuerza bruta automatizados."
+        ),
+        "goal": (
+            "Utiliza una herramienta de ataque de diccionario como Hydra para "
+            "realizar fuerza bruta sobre el servicio SSH, obtener acceso y "
+            "capturar la flag final."
+        ),
+        "tutorial_url": "URL_DEL_TUTORIAL_AQUI",
         "description": (
             "El acceso remoto usa credenciales débiles visibles en el panel Compute. "
             "Este es el último nivel: al superarlo obtienes el token de acceso "
@@ -230,6 +296,7 @@ def seed_levels(db: Session) -> None:
         flag = settings.flag_for_level(spec["order_index"])
         row = db.get(Level, spec["id"])
         payload = {**spec, "flag_hash": hash_flag(flag), "is_bonus": False}
+        payload.setdefault("prevention", "")
         if row is None:
             db.add(Level(**payload))
         else:
