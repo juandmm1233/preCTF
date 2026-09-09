@@ -55,7 +55,10 @@ def verify_token(
     if record is None:
         return VerifyTokenOut(valid=False)
 
-    expired = record.expires_at <= datetime.now(timezone.utc)
+    expires_at = record.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    expired = expires_at <= datetime.now(timezone.utc)
     owner = db.get(User, record.user_id)
     return VerifyTokenOut(
         valid=not expired,
