@@ -171,23 +171,37 @@ LEVELS = [
         "hint_cost": 20,
         "tutorial_content": "",
         "explanation": (
-            "El Command Injection ocurre cuando la aplicación toma la entrada del "
-            "usuario y la pasa directamente a la consola del sistema operativo sin "
-            "validación, permitiendo a un atacante concatenar comandos maliciosos."
+            "Una herramienta de diagnóstico (por ejemplo un ping) necesita un dato: "
+            "el nombre o la IP de un equipo. Inyección de comandos aparece cuando ese "
+            "dato se pega dentro de una línea que el sistema interpreta como instrucción. "
+            "El programa deja de distinguir «esto es un host» de «esto es algo que la "
+            "consola debe ejecutar». No hace falta memorizar recetas: el fallo es "
+            "tratar la entrada como código en lugar de como un valor acotado."
         ),
         "goal": (
-            "Inyecta comandos del sistema operativo (usando separadores como ; o &&) "
-            "en el formulario de diagnóstico para ejecutar comandos arbitrarios y "
-            "leer la flag."
+            "En `/network.php` hay un formulario de diagnóstico. Observa qué ocurre "
+            "con el campo del host: ¿la aplicación lo valida (solo letras, números y "
+            "puntos) o lo entrega tal cual a una utilidad del sistema? Tu objetivo es "
+            "demostrar que dato y comando no están separados, y localizar la flag "
+            "que el laboratorio deja cuando ese control falta. Trabaja con la interfaz "
+            "del nivel; no copies listas de ataque de internet."
+        ),
+        "prevention": (
+            "1. No construyas una línea de consola concatenando lo que escribió el usuario.\n"
+            "2. Acepta solo un host o una IP con una lista blanca (formato estricto).\n"
+            "3. Prefiere APIs que reciben argumentos ya separados, no un intérprete de shell.\n"
+            "4. El proceso que diagnostica la red no debería poder leer secretos de la aplicación."
         ),
         "tutorial_url": "https://www.youtube.com/watch?v=4Ep3Pe0_6xA",
         "description": (
             "La herramienta de red toma un host y lo pasa a una utilidad del sistema. "
-            "Separar datos de comandos es el control que falta."
+            "El control que falta es tratar ese valor como dato, no como parte de un comando."
         ),
         "hint_text": (
-            "En /network.php el campo host llega a una utilidad de diagnóstico. "
-            "Distingue entre un nombre de host y metacaracteres de intérprete."
+            "Abre `/network.php` y piensa qué debería ser un nombre de equipo válido. "
+            "Si la aplicación no rechaza valores que no parecen un host, el dato y el "
+            "comando están mezclados. La flag de este nivel no está en el texto de "
+            "ayuda de preCTF: está en lo que el laboratorio revela cuando esa mezcla existe."
         ),
     },
     {
