@@ -4,6 +4,12 @@ Plataforma web para que los estudiantes de ingeniería de sistemas completen **8
 
 Esta aplicación **no incluye** payloads ni procedimientos de explotación. El código del laboratorio vulnerable **no vive en este repositorio**: el instructor publica una imagen Docker propia y preCTF solo la arranca, la aísla y la apaga.
 
+## Documentación (auditoría y transferencia)
+
+Caso de estudio, arquitectura y tecnologías usadas: [`docs/DOCUMENTACION.md`](docs/DOCUMENTACION.md). Índice: [`docs/README.md`](docs/README.md). Presentación visual: [`docs/arquitectura.html`](docs/arquitectura.html).
+
+Este repositorio se entrega **junto** con el laboratorio competitivo en `D:\juandmm1233\CTF ucc` (documentación espejo: `CTF ucc/docs/DOCUMENTACION.md`).
+
 ## Arquitectura
 
 | Capa | Tecnología | Rol |
